@@ -16,6 +16,14 @@
     <properties>
         <java.version>11</java.version>
     </properties>
+
+    <modules>
+        <module>ms-auth</module>
+        <module>ms-core</module>
+        <module>ms-product</module>
+        <module>ms-order</module>
+        <module>ms-storage</module>
+    </modules>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
