@@ -1,4 +1,4 @@
-package ru.zsa.msorder.exeptions;
+package ru.zsa.msorder.exceptions;
 
 import lombok.Data;
 

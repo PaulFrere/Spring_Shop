@@ -1,77 +1,38 @@
 package ru.zsa.msorder.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import ru.zsa.msproduct.model.Product;
+import ru.zsa.msorder.dto.FullBasketDto;
 
 import javax.persistence.*;
 
-import java.io.Serializable;
-import java.util.Objects;
-
-@AllArgsConstructor
-@NoArgsConstructor
-@Setter
-@Getter
 @Entity
 @Table(name = "order_items")
+@Data
+@NoArgsConstructor
 public class OrderItem {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column
+    private Long id;
 
-    @Embeddable
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Setter
-    @Getter
-    public static class Id implements Serializable {
-        @Column(name = "order_id")
-        private Long orderId;
-
-        @Column(name = "product_id")
-        private Long productId;
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Id id = (Id) o;
-            return Objects.equals(orderId, id.orderId) && Objects.equals(productId, id.productId);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(orderId, productId);
-        }
-    }
-
-    @EmbeddedId
-    private Id id = new Id();
-
-    @ManyToOne
-    @JoinColumn(
-            name = "order_id",
-            insertable = false, updatable = false
-    )
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_order")
     private Order order;
 
-    @ManyToOne
-    @JoinColumn(
-            name = "product_id",
-            insertable = false, updatable = false
-    )
-    private Product product;
+    @Column(name = "id_product")
+    private Integer productId;
 
-    @Column(name = "count")
-    private int count;
+    @Column
+    private Integer quantity;
 
-    public OrderItem(Product product, Order order) {
-        this.product = product;
-        this.order = order;
-        this.id.productId = product.getId();
-        this.id.orderId = order.getId();
-        this.count = 0;
-        order.getOrderItems().add(this);
+    @Column(name = "price_per_product")
+    private Double pricePerProduct;
+
+    public OrderItem(FullBasketDto fullBasketDto) {
+        this.productId = fullBasketDto.getProduct().getId();
+        this.quantity = fullBasketDto.getQuantity();
+        this.pricePerProduct = fullBasketDto.getProduct().getPrice();
     }
-
 }
+

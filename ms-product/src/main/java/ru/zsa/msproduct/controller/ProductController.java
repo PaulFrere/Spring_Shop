@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import ru.zsa.mscore.exceptions.NoSuchPageException;
+import ru.zsa.mscore.model.ProductBasketDto;
+import ru.zsa.mscore.model.ProductBasketRequestDto;
 import ru.zsa.msproduct.model.Product;
 import ru.zsa.msproduct.model.ProductDto;
 import ru.zsa.msproduct.model.ProductSort;
@@ -77,6 +79,11 @@ public class ProductController {
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         productService.delete(id);
+    }
+
+    @PostMapping("/by_ids")
+    public List<ProductBasketDto> getProductsByIds(@RequestBody ProductBasketRequestDto productIds) {
+        return productService.getProductsByIds(productIds.getListProductId());
     }
 
 }
