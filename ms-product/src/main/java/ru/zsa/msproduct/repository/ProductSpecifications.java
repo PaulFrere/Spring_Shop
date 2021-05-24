@@ -5,53 +5,29 @@ import org.springframework.util.MultiValueMap;
 import ru.zsa.msproduct.model.Product;
 
 public class ProductSpecifications {
-
-    private static final String MIN_COST = "min_cost";
-    private static final String MAX_COST = "max_cost";
-    private static final String TITLE = "title";
-
-    private static Specification<Product> costIsLessThanAndEqual(float maxCost) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.lessThanOrEqualTo(root.get("cost"), maxCost);
+    private static Specification<Product> priceGreaterOrEqualsThan(int minPrice) {
+        return (root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.greaterThanOrEqualTo(root.get("price"), minPrice);
     }
 
-    private static Specification<Product> costIsGreaterThanAndEqual(float minCost) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.greaterThanOrEqualTo(root.get("cost"), minCost);
+    private static Specification<Product> priceLesserOrEqualsThan(int maxPrice) {
+        return (root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.lessThanOrEqualTo(root.get("price"), maxPrice);
     }
 
-    private static Specification<Product> titleIsLike(String title) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.like(
-                criteriaBuilder.lower(root.get("title")),
-                "%" + title.toLowerCase() + "%"
-        );
+    private static Specification<Product> titleLike(String titlePart) {
+        return (root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.like(root.get("title"), String.format("%%%s%%", titlePart));
     }
 
     public static Specification<Product> build(MultiValueMap<String, String> params) {
         Specification<Product> spec = Specification.where(null);
-
-        if (params.containsKey(MAX_COST)) {
-            for (String value : params.get(MAX_COST)) {
-                if (!value.isBlank()) {
-                    spec = spec.and(costIsLessThanAndEqual(Float.parseFloat(value)));
-                }
-            }
+        if (params.containsKey("min_price") && !params.getFirst("min_price").isBlank()) {
+            spec = spec.and(ProductSpecifications.priceGreaterOrEqualsThan(Integer.parseInt(params.getFirst("min_price"))));
         }
-
-        if (params.containsKey(MIN_COST)) {
-            for (String value : params.get(MIN_COST)) {
-                if (!value.isBlank()) {
-                    spec = spec.and(costIsGreaterThanAndEqual(Float.parseFloat(value)));
-                }
-            }
+        if (params.containsKey("max_price") && !params.getFirst("max_price").isBlank()) {
+            spec = spec.and(ProductSpecifications.priceLesserOrEqualsThan(Integer.parseInt(params.getFirst("max_price"))));
         }
-
-        if (params.containsKey(TITLE)) {
-            for (String value : params.get(TITLE)) {
-                if (!value.isBlank()) {
-                    spec = spec.and(titleIsLike(value));
-                }
-            }
+        if (params.containsKey("title") && !params.getFirst("title").isBlank()) {
+            spec = spec.and(ProductSpecifications.titleLike(params.getFirst("title")));
         }
-
         return spec;
     }
 }

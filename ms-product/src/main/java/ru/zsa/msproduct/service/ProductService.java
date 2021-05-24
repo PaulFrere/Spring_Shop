@@ -1,58 +1,51 @@
 package ru.zsa.msproduct.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import ru.zsa.mscore.exceptions.ResourceNotFoundException;
-import ru.zsa.mscore.model.ProductBasketDto;
 import ru.zsa.msproduct.model.Product;
-import ru.zsa.msproduct.model.ProductDto;
-import ru.zsa.msproduct.model.ProductMapper;
 import ru.zsa.msproduct.repository.ProductRepository;
+import ru.zsa.router.dto.ProductDto;
 
-import java.util.List;
+import java.text.ParseException;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class ProductService {
-
     private final ProductRepository productRepository;
-    private final ProductMapper mapper;
 
-    @Autowired
-    public ProductService(ProductRepository productRepository, ProductMapper mapper) {
-        this.productRepository = productRepository;
-        this.mapper = mapper;
+    private final ModelMapper modelMapper;
+
+    public Optional<Product> findProductById(Long id) {
+        return productRepository.findById(id);
     }
 
-    public Page<ProductDto> getAll(Specification<Product> spec, int page, int size, Sort sort) {
-        return productRepository.findAll(spec, PageRequest.of(page, size, sort)).map(mapper::toDto);
+    public Optional<ProductDto> findProductDtoById(Long id) {
+        return productRepository.findById(id).map(this::toDto);
     }
 
-    public ProductDto getById(Long id) {
-        Optional<ProductDto> product = productRepository.findById(id).map(mapper::toDto);
-        return product.orElseThrow(() -> new ResourceNotFoundException(String.format("Product with id %d not found", id)));
+    public Page<ProductDto> findAll(Specification<Product> spec, int page, int pageSize) {
+        return productRepository.findAll(spec, PageRequest.of(page - 1, pageSize)).map(this::toDto);
     }
 
-    public ProductDto add(ProductDto student) {
-        return mapper.toDto(productRepository.save(mapper.toEntity(student)));
+    public Product saveOrUpdate(Product product) {
+        return productRepository.save(product);
     }
 
-    public void delete(Long id) {
+    public void deleteById(Long id) {
         productRepository.deleteById(id);
     }
 
-    public List<ProductBasketDto> getProductsByIds(List<Integer> listProductId) {
-        return productRepository.findAllById(listProductId).stream().map(p -> {
-            ProductBasketDto productBasketDto = new ProductBasketDto();
-            productBasketDto.setId((int) p.getId());
-            productBasketDto.setTitle(p.getTitle());
-            productBasketDto.setPrice(p.getPrice());
-            return productBasketDto;
-        }).collect(Collectors.toList());
+    private ProductDto toDto(Product product) {
+        return modelMapper.map(product, ProductDto.class);
     }
+
+    private Product toEntity(ProductDto productDto) throws ParseException {
+        return modelMapper.map(productDto, Product.class);
+    }
+
 }
