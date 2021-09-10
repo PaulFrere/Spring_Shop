@@ -1,13 +1,12 @@
 server:
-  port: 8102
-  servlet:
-    context-path: /happy
+  port: 0
+
 spring:
   application:
     name: ms-product
   datasource:
     driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:product-db;MODE=PostgreSQL
+    url: jdbc:h2:mem:mydatabase;MODE=PostgreSQL
     username: sa
     password:
   jpa:
@@ -20,8 +19,9 @@ spring:
       enabled: true
       settings:
         web-allow-others: false
+
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+      default-zone: ${EUREKA_URI:http://localhost:8761/eureka}
     fetch-registry: true
