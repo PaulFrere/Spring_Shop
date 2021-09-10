@@ -4,9 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
 import ru.zsa.msauth.domain.User;
 import ru.zsa.msauth.dto.AuthRequestDTO;
 import ru.zsa.msauth.dto.AuthResponseDTO;
@@ -18,14 +18,23 @@ import ru.zsa.mscore.interfaces.ITokenService;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
+import org.springframework.data.redis.core.RedisTemplate;
+
+import java.time.Duration;
 
 @RestController
+@RequestMapping("/auth")
 public class AuthController {
     @Autowired
     private UserService userService;
 
     @Autowired
     private ITokenService tokenService;
+    @Autowired
+    private RedisTemplate redisTemplate;
+
+    @Value("${kolumarket.jwt.expiration}")
+    private String jwtExpiration;
 
     @Value("${server.servlet.context-path}")
     String path;
@@ -58,5 +67,15 @@ public class AuthController {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponseDTO(token));
         }
+    }
+
+    @PreAuthorize("hasRole('ROLE_USER')")
+    @DeleteMapping("/loggedout")
+    public ResponseEntity<?> loggedout(HttpServletResponse response) {
+        UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        redisTemplate.opsForValue().setIfAbsent(userInfo.getToken(),"rejected", Duration.ofHours(Long.parseLong(jwtExpiration)));
+        SecurityContextHolder.getContext().getAuthentication().setAuthenticated(false);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("logout");
     }
 }
