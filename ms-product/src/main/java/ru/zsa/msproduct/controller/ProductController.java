@@ -1,89 +1,86 @@
 package ru.zsa.msproduct.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import com.netflix.discovery.EurekaClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PostAuthorize;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.parameters.P;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.*;
-import ru.zsa.mscore.exceptions.NoSuchPageException;
-import ru.zsa.mscore.model.ProductBasketDto;
-import ru.zsa.mscore.model.ProductBasketRequestDto;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import ru.zsa.mscore.exceptions.MessageError;
+import ru.zsa.router.dto.OrderItemDto;
+import ru.zsa.router.dto.ProductDto;
 import ru.zsa.msproduct.model.Product;
-import ru.zsa.msproduct.model.ProductDto;
-import ru.zsa.msproduct.model.ProductSort;
-import ru.zsa.msproduct.model.SortDirection;
 import ru.zsa.msproduct.repository.ProductSpecifications;
 import ru.zsa.msproduct.service.ProductService;
+import ru.zsa.router.feignclients.OrderFeignClient;
+import ru.zsa.router.feignclients.ProductFeignClient;
 
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/api/v1/products")
+@RequiredArgsConstructor
 public class ProductController {
-
     private final ProductService productService;
 
-    @Autowired
-    public ProductController(ProductService productService) {
-        this.productService = productService;
+    private final OrderFeignClient orderFeignClient;
+
+    @GetMapping("/hello")
+    public String hello(){
+        return "hello Product";
+    }
+
+    @RequestMapping("/getAllOrdersByProduct/{id}")
+    public List<OrderItemDto> getAllOrdersByProductId(@PathVariable Long id){
+        return orderFeignClient.getAllOrderItemsByProductId(id);
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductDto>> getAll(@RequestParam MultiValueMap<String, String> params,
-                                                   @RequestParam(defaultValue = "1") int page,
-                                                   @RequestParam(defaultValue = "10") int size,
-                                                   @RequestParam(defaultValue = "ASC") SortDirection costSortDirection,
-                                                   @RequestParam(defaultValue = "ASC") SortDirection titleSortDirection,
-                                                   @RequestParam(defaultValue = "TITLE") ProductSort mainSort
+    public Page<ProductDto> findAllProducts(
+            @RequestParam MultiValueMap<String, String> params,
+            @RequestParam(name = "p", defaultValue = "1") Integer page
     ) {
-
-        if (page <= 1) {
-            page = 0;
-        } else {
-            page--;
+        if (page < 1) {
+            page = 1;
         }
 
-        Sort.Order costSorting = new Sort.Order(Sort.Direction.valueOf(costSortDirection.name()), "cost");
-        Sort.Order titleSorting = new Sort.Order(Sort.Direction.valueOf(titleSortDirection.name()), "title");
-
-        Sort resultSort;
-        if (mainSort == ProductSort.COST) {
-            resultSort = Sort.by(costSorting, titleSorting);
-        } else {
-            resultSort = Sort.by(titleSorting, costSorting);
-        }
-
-        Specification<Product> spec = ProductSpecifications.build(params);
-
-        Page<ProductDto> products = productService.getAll(spec, page, size, resultSort);
-
-        if (products.getTotalPages() <= page) {
-            throw new NoSuchPageException("Maximum page is " + products.getTotalPages());
-        }
-        return new ResponseEntity<>(products.getContent(), HttpStatus.OK);
+        return productService.findAll(ProductSpecifications.build(params), page, 10);
     }
 
+
+    @PreAuthorize("hasRole('ROLE_USER')")
     @GetMapping("/{id}")
-    public ProductDto getById(@PathVariable Long id) {
-        return productService.getById(id);
+    public ProductDto findProductById(@PathVariable Long id) {
+        return productService.findProductDtoById(id).orElseThrow(() -> new MessageError());
     }
 
     @PostMapping
-    public ProductDto add(@RequestBody ProductDto product) {
-        return productService.add(product);
+    @ResponseStatus(HttpStatus.CREATED)
+    public Product saveNewProduct(@RequestBody Product product) {
+        product.setId(null);
+        return productService.saveOrUpdate(product);
+    }
+
+    @PutMapping
+    public Product updateProduct(@RequestBody Product product) {
+        return productService.saveOrUpdate(product);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        productService.delete(id);
+    public void updateProduct(@PathVariable Long id) {
+        productService.deleteById(id);
     }
-
-    @PostMapping("/by_ids")
-    public List<ProductBasketDto> getProductsByIds(@RequestBody ProductBasketRequestDto productIds) {
-        return productService.getProductsByIds(productIds.getListProductId());
-    }
-
 }

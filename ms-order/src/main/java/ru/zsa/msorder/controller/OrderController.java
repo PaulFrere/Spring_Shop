@@ -1,48 +1,54 @@
 package ru.zsa.msorder.controller;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import ru.zsa.mscore.domain.UserInfo;
 import ru.zsa.msorder.services.OrderService;
-import ru.zsa.msorder.services.UserService;
+import ru.zsa.router.dto.OrderDto;
+import ru.zsa.router.dto.OrderItemDto;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import java.util.List;
+import java.util.Optional;
 
 @RestController
-@RequestMapping("/orders")
-//http://localhost:8189/market/orders/
+@RequestMapping("/api/v1/orders")
+@RequiredArgsConstructor
+@Slf4j
 public class OrderController {
-    @Autowired
-    private HttpSession httpSession;
 
     @Autowired
     private OrderService orderService;
 
-    @Autowired
-    private UserService userService;
-
-    @PreAuthorize("hasRole('ROLE_USER')")
-    @GetMapping
-    public ResponseEntity<?> getAll(
-            HttpServletRequest request,
-            @RequestParam(value = "sort", required = false, defaultValue = "") String[] sort
-    ) {
-        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(orderService.getCutomerOrder((UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal()));
+    @GetMapping("/order")
+    public List<OrderDto> getAllOrders(){
+        return orderService.findAllOrder();
     }
 
-    @PreAuthorize("hasRole('ROLE_USER')")
-    @PostMapping("/add/{productId}")
-    public ResponseEntity<?> addProduct(
-            @PathVariable Long productId
-    ) {
-        UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ResponseEntity.status(HttpStatus.CREATED).body(orderService.addProduct(productId, userInfo));
+    @GetMapping("/usersOrder/{id}")
+    public List<OrderDto> getOrdersByUserId (@PathVariable Long id){
+        return orderService.findAllOrdersByUserId(id);
+    }
+
+    @GetMapping("/order/{id}")
+    public Optional<OrderDto> getOrderByOrderId (@PathVariable Long id){
+        return orderService.findOrderByOrderId(id);
+    }
+
+
+    @GetMapping("/orderItems")
+    public List<OrderItemDto>  getAllOrderItems (){
+        return orderService.findAllOrderItems();
+    }
+
+    @GetMapping("/orderItems/{id}")
+    public List<OrderItemDto>  getAllOrderItemsByOrderId (@PathVariable Long id){
+        return orderService.findAllOrderItemsByOrderId(id);
+    }
+
+    @GetMapping("/orderItems/productId/{id}")
+    public List<OrderItemDto> getAllOrderItemsByProductId (@PathVariable Long id){
+        return orderService.findAllOrderItemsByProductId(id);
     }
 
 }

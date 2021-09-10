@@ -2,31 +2,26 @@ package ru.zsa.mscore.filters;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import lombok.SneakyThrows;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-import ru.zsa.mscore.domain.UserInfo;
+import ru.zsa.mscore.model.UserInfo;
 import ru.zsa.mscore.services.JWTTokenService;
 
 import javax.servlet.FilterChain;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
     private final JWTTokenService tokenService;
-    private final RedisTemplate redisTemplate;
 
-    public JWTAuthenticationFilter(JWTTokenService tokenService, RedisTemplate redisTemplate) {
+    public JWTAuthenticationFilter(JWTTokenService tokenService) {
         this.tokenService = tokenService;
-        this.redisTemplate = redisTemplate;
     }
 
     @SneakyThrows
@@ -34,29 +29,35 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest httpServletRequest,
                                     HttpServletResponse httpServletResponse,
                                     FilterChain filterChain) {
+        String authorizationHeader = httpServletRequest.getHeader("Authorization");
 
-        Cookie cookieJWT = null;
-
-        if (httpServletRequest.getCookies()!=null) {
-            cookieJWT = Arrays.stream(httpServletRequest.getCookies()).filter(cookie -> cookie.getName().equals("token")).findFirst().orElseGet(() -> {
-                return null;
-            });
-        }
-
-        if ((cookieJWT == null) || (redisTemplate.opsForValue().get(cookieJWT.getValue()) != null)) {
+        if (authorizationHeaderIsInvalid(authorizationHeader)) {
             filterChain.doFilter(httpServletRequest, httpServletResponse);
             return;
         }
 
-        UsernamePasswordAuthenticationToken authenticationToken = createToken(cookieJWT.getValue());
+        if(tokenService.findRedisToken(authorizationHeader)!=null){
+            filterChain.doFilter(httpServletRequest, httpServletResponse);
+            System.out.println("authorizationHeader: " + authorizationHeader);
+            System.out.println(" найденный токен " + tokenService.findRedisToken(authorizationHeader));
+            return;
+        }
+
+        UsernamePasswordAuthenticationToken authenticationToken = createToken(authorizationHeader);
 
         SecurityContextHolder.getContext().setAuthentication(authenticationToken);
         filterChain.doFilter(httpServletRequest, httpServletResponse);
     }
 
-    private UsernamePasswordAuthenticationToken createToken(String authorizationToken) throws ExpiredJwtException {
+    private boolean authorizationHeaderIsInvalid(String authorizationHeader) {
+        return authorizationHeader == null
+                || !authorizationHeader.startsWith("Bearer ");
+    }
 
-        UserInfo userInfo = tokenService.parseToken(authorizationToken);
+    private UsernamePasswordAuthenticationToken createToken(String authorizationHeader) throws ExpiredJwtException {
+        String token = authorizationHeader.replace("Bearer ", "");
+
+        UserInfo userInfo = tokenService.parseToken(token);
 
         List<GrantedAuthority> authorities = new ArrayList<>();
 

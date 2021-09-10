@@ -1,52 +1,77 @@
 package ru.zsa.msorder.services;
 
+import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import ru.zsa.msorder.dto.FullBasketDto;
-import ru.zsa.msorder.dto.OrderResponseDto;
-import ru.zsa.msorder.exceptions.PromoInvalidException;
-import ru.zsa.msorder.domain.*;
+import ru.zsa.msorder.model.Order;
+import ru.zsa.msorder.model.OrderItem;
+import ru.zsa.msorder.repository.OrderItemRepository;
 import ru.zsa.msorder.repository.OrderRepository;
+import ru.zsa.router.dto.OrderDto;
+import ru.zsa.router.dto.OrderItemDto;
 
-import java.util.Random;
+import javax.transaction.Transactional;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class OrderService {
-
-    private final Integer PROMO_APPLIED = 1;
-
 
     @Autowired
     private OrderRepository orderRepository;
 
     @Autowired
-    private BasketService basketService;
+    private OrderItemRepository orderItemRepository;
 
 
+    @Autowired
+    private ModelMapper modelMapper;
 
-    public String generateRandomCode() {
-        int leftLimit = 48; // numeral '0'
-        int rightLimit = 122; // letter 'z'
-        int targetStringLength = 6;
-        Random random = new Random();
 
-        return random.ints(leftLimit, rightLimit + 1)
-                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
-                .limit(targetStringLength)
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                .toString();
+    public List<OrderDto> findAllOrdersByUserId (Long id){
+        return  orderRepository.findAllByUserId(id).stream().map(this::OrderToDto).collect(Collectors.toList());
+    }
+
+    public List<OrderDto> findAllOrder (){
+        return  orderRepository.findAll().stream().map(this::OrderToDto).collect(Collectors.toList());
+    }
+
+    public Optional <OrderDto> findOrderByOrderId (Long id){
+        return (orderRepository.findById(id)).map(this::OrderToDto);
     }
 
     @Transactional
-    public OrderResponseDto createOrder(Integer userId, OrderRequestDto orderRequestDto) {
-        Order order = new Order(orderRequestDto);
-        order.setUserId(userId);
-        order.setOrderStatus(OrderStatus.CREATED.getStatus());
-        OrderResponseDto orderResponseDto = new OrderResponseDto();
-        orderResponseDto.setId(orderRepository.save(order).getId());
-        basketService.deleteByIds(orderRequestDto.getItems().stream().map(FullBasketDto::getId).collect(Collectors.toList()));
-        return orderResponseDto;
+    public List<OrderItemDto> findAllOrderItemsByOrderId (Long id){
+        return orderItemRepository.findOrderItemsByOrderId(id).stream().map(this::OrderItemToDto).collect(Collectors.toList());
     }
+
+    public List<OrderItemDto> findAllOrderItems(){
+        return orderItemRepository.findAll().stream().map(this::OrderItemToDto).collect(Collectors.toList());
+    }
+
+
+    public List<OrderItemDto> findAllOrderItemsByProductId(Long id){
+        return orderItemRepository.findAllByProductId(id).stream().map(this::OrderItemToDto).collect(Collectors.toList());
+    }
+
+
+    public OrderDto OrderToDto (Order order){
+        return modelMapper.map(order, OrderDto.class);
+    }
+
+    public Order OrderDtoToOrder (OrderDto orderDto){
+        return modelMapper.map(orderDto, Order.class);
+    }
+
+    public OrderItemDto OrderItemToDto (OrderItem orderItem){
+        return modelMapper.map(orderItem, OrderItemDto.class);
+    }
+
+    public OrderItem OrderItemDtoToOrder (OrderItemDto orderItemDto){
+        return modelMapper.map(orderItemDto, OrderItem.class);
+    }
+
 }
