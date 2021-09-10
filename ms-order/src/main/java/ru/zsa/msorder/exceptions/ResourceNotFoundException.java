@@ -1,4 +1,4 @@
-package ru.zsa.msorder.exeptions;
+package ru.zsa.msorder.exceptions;
 
 public class ResourceNotFoundException extends RuntimeException {
     public ResourceNotFoundException(String message) {

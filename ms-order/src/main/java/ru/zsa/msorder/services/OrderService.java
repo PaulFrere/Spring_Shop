@@ -2,56 +2,51 @@ package ru.zsa.msorder.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import ru.zsa.mscore.domain.UserInfo;
+import org.springframework.transaction.annotation.Transactional;
+import ru.zsa.msorder.dto.FullBasketDto;
+import ru.zsa.msorder.dto.OrderResponseDto;
+import ru.zsa.msorder.exceptions.PromoInvalidException;
 import ru.zsa.msorder.domain.*;
-import ru.zsa.msorder.dto.OrderItemDTO;
-import ru.zsa.msorder.repository.CustomerRepository;
-import ru.zsa.msorder.repository.OrderItemRepository;
 import ru.zsa.msorder.repository.OrderRepository;
-import ru.zsa.msproduct.model.Product;
-import ru.zsa.msproduct.repository.ProductRepository;
 
-import javax.transaction.Transactional;
-import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
 
+    private final Integer PROMO_APPLIED = 1;
+
+
     @Autowired
     private OrderRepository orderRepository;
 
     @Autowired
-    private OrderItemRepository orderItemRepository;
+    private BasketService basketService;
 
-    @Autowired
-    private CustomerRepository customerRepository;
 
-    @Autowired
-    private ProductRepository productRepository;
 
-    public List<OrderItemDTO> getCutomerOrder(UserInfo user) {
-        return orderItemRepository.getOrderItemsByOrder(getCreatedUserOrder(user)).stream().map(orderItem -> new OrderItemDTO(orderItem)).collect(Collectors.toList());
-    }
+    public String generateRandomCode() {
+        int leftLimit = 48; // numeral '0'
+        int rightLimit = 122; // letter 'z'
+        int targetStringLength = 6;
+        Random random = new Random();
 
-    private Order getCreatedUserOrder(UserInfo user) {
-        Customer currentCustomer = customerRepository.getCustomerByUserId(user.getUserId().intValue()).orElseGet(()->customerRepository.save(new Customer("",user)));
-
-        return orderRepository.getOrderByCustomer(currentCustomer).orElseGet(()->
-                orderRepository.save(new Order(currentCustomer, OrderStatus.CREATE))
-
-        );
+        return random.ints(leftLimit, rightLimit + 1)
+                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
+                .limit(targetStringLength)
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString();
     }
 
     @Transactional
-    public OrderItemDTO addProduct(Long productId, UserInfo user) {
-        Order currentOrder = getCreatedUserOrder(user);
-        Product currentProduct = productRepository.findById(productId).get();
-        OrderItem orderItem = orderItemRepository.getOrderItemByProductAndOrder(currentProduct,currentOrder).orElseGet(()->
-                new OrderItem(currentProduct,currentOrder)
-        );
-        orderItem.setCount(orderItem.getCount()+1);
-        return new OrderItemDTO(orderItemRepository.save(orderItem));
+    public OrderResponseDto createOrder(Integer userId, OrderRequestDto orderRequestDto) {
+        Order order = new Order(orderRequestDto);
+        order.setUserId(userId);
+        order.setOrderStatus(OrderStatus.CREATED.getStatus());
+        OrderResponseDto orderResponseDto = new OrderResponseDto();
+        orderResponseDto.setId(orderRepository.save(order).getId());
+        basketService.deleteByIds(orderRequestDto.getItems().stream().map(FullBasketDto::getId).collect(Collectors.toList()));
+        return orderResponseDto;
     }
-
 }

@@ -7,12 +7,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import ru.zsa.mscore.exceptions.ResourceNotFoundException;
+import ru.zsa.mscore.model.ProductBasketDto;
 import ru.zsa.msproduct.model.Product;
 import ru.zsa.msproduct.model.ProductDto;
 import ru.zsa.msproduct.model.ProductMapper;
 import ru.zsa.msproduct.repository.ProductRepository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
@@ -41,5 +44,15 @@ public class ProductService {
 
     public void delete(Long id) {
         productRepository.deleteById(id);
+    }
+
+    public List<ProductBasketDto> getProductsByIds(List<Integer> listProductId) {
+        return productRepository.findAllById(listProductId).stream().map(p -> {
+            ProductBasketDto productBasketDto = new ProductBasketDto();
+            productBasketDto.setId((int) p.getId());
+            productBasketDto.setTitle(p.getTitle());
+            productBasketDto.setPrice(p.getPrice());
+            return productBasketDto;
+        }).collect(Collectors.toList());
     }
 }

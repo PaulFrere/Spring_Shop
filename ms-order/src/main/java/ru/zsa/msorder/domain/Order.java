@@ -1,44 +1,62 @@
 package ru.zsa.msorder.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
-
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
-@AllArgsConstructor
-@NoArgsConstructor
-@Setter
-@Getter
 @Entity
 @Table(name = "orders")
+@Data
+@NoArgsConstructor
 public class Order {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    Long id;
+    @Column
+    private Long id;
 
-    @OneToMany(mappedBy = "order")
-    private List<OrderItem> orderItems;
+    @Column(name = "id_user")
+    private Integer userId;
 
     @Column(name = "status")
-    private String status;
+    private Integer orderStatus;
 
-    @ManyToOne
-    @JoinColumn(
-            name = "customer_id",
-            insertable = false, updatable = false
-    )
-    private Customer customer;
+    @Column(name = "delivery_type")
+    private Integer deliveryType;
 
-    public Order(Customer customer, OrderStatus status) {
-        this.customer = customer;
-        this.status = status.name();
-        this.orderItems = new ArrayList<>();
-    };
+    @Column(name = "delivery_details")
+    private Long deliveryDetails;
+
+    @Column
+    private Double price;
+
+    @Column(name = "delivery_price")
+    private Double deliveryPrice;
+
+    @Column(name = "total_price")
+    private Double totalPrice;
+
+    @Column(name = "created_at", updatable = false)
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.PERSIST)
+    List<OrderItem> items;
+
+    public Order(OrderRequestDto orderRequestDto) {
+        this.deliveryType = orderRequestDto.getDeliveryType();
+        this.deliveryDetails = orderRequestDto.getDeliveryDetails();
+        this.price = orderRequestDto.getPrice();
+        this.deliveryPrice = orderRequestDto.getDeliveryPrice();
+        this.totalPrice = orderRequestDto.getPrice() + orderRequestDto.getDeliveryPrice();
+        this.items = orderRequestDto.getItems().stream().map(fullBasketDto -> {
+            OrderItem orderItem = new OrderItem(fullBasketDto);
+            orderItem.setOrder(this);
+            return orderItem;
+        }).collect(Collectors.toList());
+    }
 }
